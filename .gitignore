@@ -1,0 +1,4 @@
+.antlr
+node_modules
+test/tmp/*
+.vscode
