@@ -8,17 +8,16 @@ if (!fs.existsSync(`./test/tmp/`)) {
 
 let counter = 0;
 
-class GrammarTest {
-    constructor(grammar) {
-        this.grammar = grammar;
+class GrammarTestBase {
+    constructor() {
+        this._input = null;
+        this._options = {};
         this.counter = counter++;
-        const file = `file${this.counter}`
-        fs.writeFileSync(`./test/tmp/${file}.g4`, this.fullGrammar);
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${file}.g4  -no-visitor -no-listener -o ./test/tmp/`)
+        this._cachedParser = null;
     }
 
-    get fullGrammar() {
-        return  `grammar file${this.counter};\n` + this.grammar;
+    get file() {
+        return `file${this.counter}`;
     }
 
     whenInput(input) {
@@ -26,22 +25,57 @@ class GrammarTest {
         return this;
     }
 
+    whileIgnoringOtherChannels() {
+        this.options.ignoreSuggestionsInNonDefaultChannels = true;
+        return this;
+    }
+
+    options(opts) {
+        this.options = opts;
+        return this;
+    }
+
+    async getParser() {
+        if (!this._cachedParser) {
+            this._cachedParser = await this.buildParser();
+        }
+        return this._cachedParser;
+    }
+
     async thenExpect(expected) {
         if (!Array.isArray(expected)) expected = [expected];
-        const file = `file${this.counter}`
-        const Lexer = await import(`../tmp/${file}Lexer.js`)
-        const Parser = await import(`../tmp/${file}Parser.js`)
-        const ac = new Autocompleter(Lexer.default, Parser.default);
+        const [Lexer, Parser] = await this.getParser();
+        const ac = new Autocompleter(Lexer, Parser, this.options);
         const result = ac.autocomplete(this.input);
         expect(result).toEqual(expected);
     }
 }
 
+class SingleGrammarFile extends GrammarTestBase {
+    constructor(grammar) {
+        super();
+        this._cachedParser = null;
+        this.grammar = grammar;
+    }
+
+    get fullGrammar() {
+        return  `grammar file${this.counter};\n` + this.grammar;
+    }
+
+    async buildParser() {
+        fs.writeFileSync(`./test/tmp/${this.file}.g4`, this.fullGrammar);
+        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${this.file}.g4  -no-visitor -no-listener -o ./test/tmp/`)
+        const Lexer = await import(`../tmp/${this.file}Lexer.js`)
+        const Parser = await import(`../tmp/${this.file}Parser.js`)
+        return [Lexer.default, Parser.default];
+    }
+}
+
 //TODO would be nice to combine it with GrammarTest 
-class SplitGrammarTest {
+class SplitGrammar extends GrammarTestBase {
     constructor(lexer) {
+        super();
         this._lexer = lexer;
-        this._input = null;
         this.counter = counter++;
     }
 
@@ -58,30 +92,22 @@ class SplitGrammarTest {
         return this;
     }
 
-    whenInput(input) {
-        this.input = input;
-        return this;
-    }
 
-    async thenExpect(expected) {
-        if (!Array.isArray(expected)) expected = [expected];
-        const file = `file${this.counter}`
-        fs.writeFileSync(`./test/tmp/${file}Lexer.g4`, this.fullLexer);
-        fs.writeFileSync(`./test/tmp/${file}Parser.g4`, this.fullParser);
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${file}Lexer.g4  -no-visitor -no-listener -o ./test/tmp/`)
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${file}Parser.g4  -no-visitor -no-listener -o ./test/tmp/`)
-        const Lexer = await import(`../tmp/${file}Lexer.js`)
-        const Parser = await import(`../tmp/${file}Parser.js`)
-        const ac = new Autocompleter(Lexer.default, Parser.default);
-        const result = ac.autocomplete(this.input);
-        expect(result).toEqual(expected);
+    async buildParser() {
+        fs.writeFileSync(`./test/tmp/${this.file}Lexer.g4`, this.fullLexer);
+        fs.writeFileSync(`./test/tmp/${this.file}Parser.g4`, this.fullParser);
+        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${this.file}Lexer.g4  -no-visitor -no-listener -o ./test/tmp/`)
+        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${this.file}Parser.g4  -no-visitor -no-listener -o ./test/tmp/`)
+        const Lexer = await import(`../tmp/${this.file}Lexer.js`)
+        const Parser = await import(`../tmp/${this.file}Parser.js`)
+        return [Lexer.default, Parser.default];
     }
 }
 
 export function givenGrammar(grammar) {
-    return new GrammarTest(grammar);
+    return new SingleGrammarFile(grammar);
 }
 
 export function givenLexer(lexer) {
-    return new SplitGrammarTest(lexer);
+    return new SplitGrammar(lexer);
 }
