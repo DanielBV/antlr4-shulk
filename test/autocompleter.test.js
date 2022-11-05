@@ -67,10 +67,16 @@ describe('Test Autocompletition', () => {
     it('Test dots', async () => {
       await givenGrammar("r: .; A:'a'; B: 'b';").whenInput("").thenExpect(["A", "B"]);
     });
-    //TODO test skip
     //TODO test tokens that combine multiple intervals [a-zA-Z0-9]. It shouldn't really matter but it doesnt matter
     it('Ignores tokens in other channels', async () => {
-      await givenLexer("channels {POTATO}\n A:'a' -> channel(HIDDEN); B: 'b' -> channel(POTATO); C:'c';").andParser("r: .;").whenInput("").thenExpect(["C"])
+      //TODO test that it doesn't confuse the channel action with other actions (push, pop, etc)
+      await givenLexer("channels {POTATO}\n A:'a' -> channel(HIDDEN); B: 'b' -> channel(POTATO); C:'c';")
+      .andParser("r: .;")
+      .whenInput("")
+      .whileIgnoringOtherChannels()
+      .thenExpect(["C"])
     });
+    //TODO Do lexer modes affect the autocomplete?
+
 
 });
