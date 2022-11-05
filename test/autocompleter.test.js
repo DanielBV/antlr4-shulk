@@ -39,7 +39,7 @@ describe('Test Autocompletition', () => {
     });
 
     it('Test left-recursion', async() => {
-      await givenGrammar(`
+      const grammar =  givenGrammar(`
       expr: expr (MULT|DIV) expr
         | expr (PLUS|MINUS) expr
         | literal;
@@ -52,8 +52,11 @@ describe('Test Autocompletition', () => {
       DIV: '/';
       PLUS: '+';
       MINUS: '-';
-      `).whenInput("a + b").thenExpect("C");
-
+      `);
+      
+      await grammar.whenInput("a + b").thenExpect(["MULT", "DIV", "PLUS", "MINUS"]);
+      await grammar.whenInput("a +").thenExpect("ID");
+      await grammar.whenInput("a + b * c / d - e").thenExpect(["MULT", "DIV", "PLUS", "MINUS"]);
     });
 
     //TODO test negated sets and negated optional sets
