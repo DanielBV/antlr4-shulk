@@ -12,6 +12,9 @@ class GrammarTest {
     constructor(grammar) {
         this.grammar = grammar;
         this.counter = counter++;
+        const file = `file${this.counter}`
+        fs.writeFileSync(`./test/tmp/${file}.g4`, this.fullGrammar);
+        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${file}.g4  -no-visitor -no-listener -o ./test/tmp/`)
     }
 
     get fullGrammar() {
@@ -26,8 +29,6 @@ class GrammarTest {
     async thenExpect(expected) {
         if (!Array.isArray(expected)) expected = [expected];
         const file = `file${this.counter}`
-        fs.writeFileSync(`./test/tmp/${file}.g4`, this.fullGrammar);
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${file}.g4  -no-visitor -no-listener -o ./test/tmp/`)
         const Lexer = await import(`../tmp/${file}Lexer.js`)
         const Parser = await import(`../tmp/${file}Parser.js`)
         const ac = new Autocompleter(Lexer.default, Parser.default);
