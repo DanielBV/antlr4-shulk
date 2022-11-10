@@ -1,5 +1,6 @@
 import Autocompleter from '../../lib/autocompleter';
 import child from 'child_process';
+import path from 'path';
 import fs from 'fs';
 
 if (!fs.existsSync(`./test/tmp/`)) {
@@ -68,8 +69,11 @@ class SingleGrammarFile extends GrammarTestBase {
     }
 
     async buildParser() {
+        // This is used because for some reason the relative path of the output folder of the execSync worked differently 
+        // when run in Github actions 
+        const fullPath = path.resolve(".");
         fs.writeFileSync(`./test/tmp/${this.file}.g4`, this.fullGrammar);
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${this.file}.g4  -no-visitor -no-listener -o ./test/tmp/`)
+        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}.g4  -no-visitor -no-listener -o  ${fullPath}/test/tmp/`)
         const Lexer = await import(`../tmp/${this.file}Lexer.js`)
         const Parser = await import(`../tmp/${this.file}Parser.js`)
         return [Lexer.default, Parser.default];
@@ -101,8 +105,9 @@ class SplitGrammar extends GrammarTestBase {
     async buildParser() {
         fs.writeFileSync(`./test/tmp/${this.file}Lexer.g4`, this.fullLexer);
         fs.writeFileSync(`./test/tmp/${this.file}Parser.g4`, this.fullParser);
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${this.file}Lexer.g4  -no-visitor -no-listener -o ./test/tmp/`)
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ./test/tmp/${this.file}Parser.g4  -no-visitor -no-listener -o ./test/tmp/`)
+        const fullPath = path.resolve(".");
+        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Lexer.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
+        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Parser.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
         const Lexer = await import(`../tmp/${this.file}Lexer.js`)
         const Parser = await import(`../tmp/${this.file}Parser.js`)
         return [Lexer.default, Parser.default];
