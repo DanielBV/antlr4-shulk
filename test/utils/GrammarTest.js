@@ -11,7 +11,7 @@ let counter = 0;
 class GrammarTestBase {
     constructor() {
         this._input = null;
-        this._options = {};
+        this.options = {};
         this.counter = counter++;
         this._cachedParser = null;
     }
@@ -30,8 +30,13 @@ class GrammarTestBase {
         return this;
     }
 
-    options(opts) {
+    withOptions(opts) {
         this.options = opts;
+        return this;
+    }
+
+    withDefaultConfig() {
+        this.options = null;
         return this;
     }
 
