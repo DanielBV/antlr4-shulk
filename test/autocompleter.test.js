@@ -2,15 +2,41 @@
 import {givenGrammar, givenLexer} from './utils/GrammarTest';
 
 describe('Test Autocompletition', () => {
-    const LETTER_LEXER = "A: 'A'; B: 'B'; C: 'C'";
+    const LETTER_LEXER = "A: 'A'; B: 'B'; C: 'C';";
     it('General', async () => {
       await givenGrammar("r: A A 'B'; A: 'A';").whenInput("AA").thenExpect("B");
       await givenGrammar("r: 'A' ('B'|'C'|'D') EOF;").whenInput("A").thenExpect(["B","C","D"]); //TODO test also with optionals, and optional rules
+      await givenGrammar("r: A (A|C) EOF;" + LETTER_LEXER).whenInput("A").thenExpect(["A", "C"]); // This tests split interval sets
       await givenGrammar("r: 'A' EOF;").whenInput("A").thenExpect("EOF");
       await givenGrammar("r: 'A' 'B'? 'C' EOF;").whenInput("A").thenExpect(["B","C"]);
+      await givenGrammar("r: 'A' ('B'|) 'C' EOF;").whenInput("A").thenExpect(["B","C"]);
       await givenGrammar("r: A+ B; A: 'A'; B:'B';").whenInput("A").thenExpect(["A", "B"]);
+      await givenGrammar("r: A* B; A: 'A'; B:'B';").whenInput("A").thenExpect(["A", "B"]);
+      // Fun fact: When it's greedy the transitions are ordered different (probably because of the priority change) which
+      // makes 
+      await givenGrammar("r: A+? B; A: 'A'; B:'B';").whenInput("A").thenExpect(["B", "A"]);
+      await givenGrammar("r: A*? B; A: 'A'; B:'B';").whenInput("A").thenExpect(["B", "A"]);
+      await givenGrammar("r: 'A' 'B'?? 'C' EOF;").whenInput("A").thenExpect(["C", "B"]);
+      //TODO I should also test that the autosuggester transverses all these.
     });
 
+
+
+    
+    it("removes duplicated tokens", async () => {
+      await givenGrammar("r: A | .; A: 'A';").whenInput("").thenExpect("A");
+    })
+
+
+    it("Non set transitions", async () => {
+      // ~A is a non set even though it's a single element
+      await givenGrammar("r:  ~A; A: 'A'; B: 'B'; C: 'C';").whenInput("").thenExpect(["B", "C"]);
+      await givenGrammar("r:  ~A B; A: 'A'; B: 'B'; C: 'C';").whenInput("C").thenExpect(["B"]);
+
+      await givenGrammar("r:  ~(A | B); A: 'A'; B: 'B'; C: 'C';").whenInput("").thenExpect(["C"]);
+      await givenGrammar("r:  (~(A | C)); A: 'A'; B: 'B'; C: 'C';").whenInput("").thenExpect(["B"]);
+      await givenGrammar("r:  (~(A | B | C)); A: 'A'; B: 'B'; C: 'C';").whenInput("").thenExpect([]);
+    });
 
     it('Follows subrules', async () => {
        await givenGrammar(`first: A second; 
@@ -63,18 +89,24 @@ describe('Test Autocompletition', () => {
     it('Inline tokens return their value', async () => {
       await givenGrammar("r: 'A';").whenInput("A").thenExpect([]);
     });
-    //TODO test tokens in other channels
+
     it('Test dots', async () => {
-      await givenGrammar("r: .; A:'a'; B: 'b';").whenInput("").thenExpect(["A", "B"]);
+      await givenGrammar("r: .; A: [a-zA-Z0-9]; B: 'b';").whenInput("").thenExpect(["A", "B"]);
+      await givenGrammar("r: .; ").whenInput("").thenExpect([]);
     });
-    //TODO test tokens that combine multiple intervals [a-zA-Z0-9]. It shouldn't really matter but it doesnt matter
+
     it('Ignores tokens in other channels', async () => {
-      //TODO test that it doesn't confuse the channel action with other actions (push, pop, etc)
       const parser = givenLexer("channels {POTATO}\n A:'a' -> channel(HIDDEN); B: 'b' -> channel(POTATO); C:'c';")
         .andParser("r: .;");
-      //TODO test if it has channel(DEFAULT_TOKEN_CHANNEL)
       await parser.whileIgnoringOtherChannels().whenInput("").thenExpect(["C"]);
       await parser.withDefaultConfig().whenInput("").thenExpect(["A", "B", "C"]);
+      
+      // This tests that when ignoring other channels still includes those tokens that explicitely use the default channel
+      givenLexer("channels {POTATO}\n A:'a' -> channel(0); B:'b';")
+        .andParser("r: .;")
+        .whileIgnoringOtherChannels()
+        .whenInput("")
+        .thenExpect(["A", "B"])
     });
 
     it("ignoreSuggestionsInNonDefaultChannels doesn't get confused with other types of lexer actions", async () => {
@@ -93,10 +125,8 @@ describe('Test Autocompletition', () => {
       // After all, "." is probably not used
       await grammar.withDefaultConfig()
       .whenInput("ABABABA").thenExpect(["A", "A2"])
-    
     });
 
-    //TODO Test if I can get duplicated tokens
 
     it("considers the types of the tokens (spoiler: it actually doesn't)", async () => {
       await givenLexer(`
