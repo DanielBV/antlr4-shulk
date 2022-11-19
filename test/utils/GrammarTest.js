@@ -2,6 +2,7 @@ import Autocompleter from '../../lib/autocompleter';
 import child from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 
 if (!fs.existsSync(`./test/tmp/`)) {
     fs.mkdirSync(`./test/tmp/`);
@@ -20,7 +21,11 @@ class GrammarTestBase {
     constructor() {
         this._input = null;
         this.options = {};
-        this.counter = counter++;
+        // Maybe I could use something else rather than uuids?
+        // The whole point of this rather than a counter (by the variable name you can guess it used to be an autoincreasing counter)
+        // is that since there is a global cache persisted across multiple executions, and since you can define new tests, that 
+        // could mess up the INCREASING counter (unless you always add tests at the end)
+        this.counter = crypto.randomUUID().replaceAll("-","");
         this._cachedParser = null;
     }
 
@@ -108,7 +113,6 @@ class SplitGrammar extends GrammarTestBase {
     constructor(lexer) {
         super();
         this._lexer = lexer;
-        this.counter = counter++;
     }
 
     get fullLexer() {
