@@ -13,5 +13,5 @@ jobs:
     - run: npm test
     - name: debug
       if: always()
-      - run: cd ./test/tmp/
-      - run: ls
+    - run: cd ./test/tmp/
+    - run: ls
