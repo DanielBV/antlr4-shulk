@@ -8,6 +8,13 @@ if (!fs.existsSync(`./test/tmp/`)) {
 }
 
 let counter = 0;
+// There are two caches:
+// - The _cachedParser in GrammarTestBase is used to avoid regenerating the same parser 
+// if a GrammarTestBase calls multiple times to "thenExpect"
+// - The globalCache is used to avoid regenerating the same parser across multiple executions. 
+//      It's persisted to a json file.
+let globalCache = {};
+
 
 class GrammarTestBase {
     constructor() {
@@ -19,6 +26,10 @@ class GrammarTestBase {
 
     get file() {
         return `file${this.counter}`;
+    }
+
+    saveInGlobalCache() {
+        throw new Error("Abstract method");
     }
 
     whenInput(input) {
@@ -44,6 +55,7 @@ class GrammarTestBase {
     async getParser() {
         if (!this._cachedParser) {
             this._cachedParser = await this.buildParser();
+            this.saveInGlobalCache();
         }
         return this._cachedParser;
     }
@@ -68,14 +80,25 @@ class SingleGrammarFile extends GrammarTestBase {
         return  `grammar file${this.counter};\n` + this.grammar;
     }
 
+    saveInGlobalCache() {
+        globalCache[this.grammar] = this.file;
+    }
+
     async buildParser() {
         // This is used because for some reason the relative path of the output folder of the execSync worked differently 
         // when run in Github actions 
         const fullPath = path.resolve(".");
-        fs.writeFileSync(`./test/tmp/${this.file}.g4`, this.fullGrammar);
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}.g4  -no-visitor -no-listener -o  ${fullPath}/test/tmp/`)
-        const Lexer = await import(`../tmp/${this.file}Lexer.js`)
-        const Parser = await import(`../tmp/${this.file}Parser.js`)
+        let file;
+        // The globalCache overrides the this.file
+        if(globalCache[this.grammar]) {
+            file = globalCache[this.grammar];
+        } else {
+            fs.writeFileSync(`./test/tmp/${this.file}.g4`, this.fullGrammar);
+            child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}.g4  -no-visitor -no-listener -o  ${fullPath}/test/tmp/`)
+            file = this.file;
+        }   
+        const Lexer = await import(`../tmp/${file}Lexer.js`)
+        const Parser = await import(`../tmp/${file}Parser.js`)
         return [Lexer.default, Parser.default];
     }
 }
@@ -96,20 +119,31 @@ class SplitGrammar extends GrammarTestBase {
         return  `parser grammar file${this.counter}Parser;\n options { tokenVocab=file${this.counter}Lexer;}` + this._parser;
     }
 
+    saveInGlobalCache() {
+        globalCache[this._lexer] = {};
+        globalCache[this._lexer][this._parser] = this.file; 
+    }
+
     andParser(parser) {
         this._parser = parser;
         return this;
     }
 
-
     async buildParser() {
-        fs.writeFileSync(`./test/tmp/${this.file}Lexer.g4`, this.fullLexer);
-        fs.writeFileSync(`./test/tmp/${this.file}Parser.g4`, this.fullParser);
-        const fullPath = path.resolve(".");
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Lexer.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
-        child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Parser.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
-        const Lexer = await import(`../tmp/${this.file}Lexer.js`)
-        const Parser = await import(`../tmp/${this.file}Parser.js`)
+        let file;
+        // The globalCache overrides the this.file
+        if(globalCache[this._lexer] &&  globalCache[this._lexer][this._parser]) {
+            file = globalCache[this._lexer][this._parser];
+        } else {
+            fs.writeFileSync(`./test/tmp/${this.file}Lexer.g4`, this.fullLexer);
+            fs.writeFileSync(`./test/tmp/${this.file}Parser.g4`, this.fullParser);
+            const fullPath = path.resolve(".");
+            child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Lexer.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
+            child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Parser.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
+            file = this.file;
+        }
+         const Lexer = await import(`../tmp/${file}Lexer.js`)
+        const Parser = await import(`../tmp/${file}Parser.js`)
         return [Lexer.default, Parser.default];
     }
 }
@@ -120,4 +154,18 @@ export function givenGrammar(grammar) {
 
 export function givenLexer(lexer) {
     return new SplitGrammar(lexer);
+}
+
+const CACHE_PATH = './test/tmp/cache.json';
+export function loadCache() {
+    if (fs.existsSync(CACHE_PATH)) {
+        const data = fs.readFileSync(CACHE_PATH, {encoding:'utf8'});
+        globalCache = JSON.parse(data);
+        console.log(globalCache);
+    }
+}
+
+export function saveCache() {
+    fs.writeFileSync(CACHE_PATH, JSON.stringify(globalCache));
+    console.log('Cached cases');
 }

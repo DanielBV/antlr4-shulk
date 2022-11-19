@@ -1,28 +1,39 @@
 
-import {givenGrammar, givenLexer} from './utils/GrammarTest';
+import {givenGrammar, givenLexer, saveCache, loadCache} from './utils/GrammarTest';
+
 
 describe('Test Autocompletition', () => {
+
+    beforeAll(() => {
+      return loadCache();
+    })
+    afterAll(() => {
+      return saveCache();
+    });
+
     const LETTER_LEXER = "A: 'A'; B: 'B'; C: 'C';";
     it('General', async () => {
+      // For every case I should test both what happens if the caret is there + that it transverses it if it's not a caret
       await givenGrammar("r: A A 'B'; A: 'A';").whenInput("AA").thenExpect("B");
       await givenGrammar("r: 'A' ('B'|'C'|'D') EOF;").whenInput("A").thenExpect(["B","C","D"]); //TODO test also with optionals, and optional rules
       await givenGrammar("r: A (A|C) EOF;" + LETTER_LEXER).whenInput("A").thenExpect(["A", "C"]); // This tests split interval sets
       await givenGrammar("r: 'A' EOF;").whenInput("A").thenExpect("EOF");
-      await givenGrammar("r: 'A' 'B'? 'C' EOF;").whenInput("A").thenExpect(["B","C"]);
-      await givenGrammar("r: 'A' ('B'|) 'C' EOF;").whenInput("A").thenExpect(["B","C"]);
+
+      //Optionals
+      await givenGrammar("r: 'A' 'B'? 'C' EOF;").whenInput("A").thenExpect(["B","C"]); 
+      await givenGrammar("r: 'A' w? 'C'; w: 'B' 'W'; ").whenInput("A").thenExpect(["B","C"]);
+      await givenGrammar("r: 'A' ('B'|) 'C' EOF;").whenInput("A").thenExpect(["B","C"]); //Implicit optional
       await givenGrammar("r: A+ B; A: 'A'; B:'B';").whenInput("A").thenExpect(["A", "B"]);
+      await givenGrammar("r: w+ B; w: A 'C'?;  A: 'A'; B:'B';").whenInput("A").thenExpect(["C", "A", "B"]);
       await givenGrammar("r: A* B; A: 'A'; B:'B';").whenInput("A").thenExpect(["A", "B"]);
-      // Fun fact: When it's greedy the transitions are ordered different (probably because of the priority change) which
-      // makes 
+      // Fun fact: When it's greedy the transitions are ordered different (probably because of the priority change and antlr4 might prioritize
+      // transitions by their order) 
       await givenGrammar("r: A+? B; A: 'A'; B:'B';").whenInput("A").thenExpect(["B", "A"]);
       await givenGrammar("r: A*? B; A: 'A'; B:'B';").whenInput("A").thenExpect(["B", "A"]);
       await givenGrammar("r: 'A' 'B'?? 'C' EOF;").whenInput("A").thenExpect(["C", "B"]);
-      //TODO I should also test that the autosuggester transverses all these.
     });
 
 
-
-    
     it("removes duplicated tokens", async () => {
       await givenGrammar("r: A | .; A: 'A';").whenInput("").thenExpect("A");
     })
@@ -85,7 +96,6 @@ describe('Test Autocompletition', () => {
       await grammar.whenInput("a + b * c / d - e").thenExpect(["MULT", "DIV", "PLUS", "MINUS"]);
     });
 
-    //TODO test negated sets and negated optional sets
     it('Inline tokens return their value', async () => {
       await givenGrammar("r: 'A';").whenInput("A").thenExpect([]);
     });
