@@ -11,8 +11,7 @@ jobs:
         node-version: '14.x'
     - run: npm ci
     - run: npm test
-  debug:
+    - name: debug
     if: always()
-    steps:
     - run: cd ./test/tmp/
     - run: ls
