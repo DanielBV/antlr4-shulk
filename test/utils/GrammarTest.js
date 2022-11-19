@@ -97,6 +97,7 @@ class SingleGrammarFile extends GrammarTestBase {
             child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}.g4  -no-visitor -no-listener -o  ${fullPath}/test/tmp/`)
             file = this.file;
         }   
+        console.log(this.file + "\n" + this.grammar)
         const Lexer = await import(`../tmp/${file}Lexer.js`)
         const Parser = await import(`../tmp/${file}Parser.js`)
         return [Lexer.default, Parser.default];
