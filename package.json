@@ -5,7 +5,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "retest": "del ./test/tmp/cache.json; npm run test"
   },
   "repository": {
     "type": "git",

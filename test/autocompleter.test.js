@@ -102,7 +102,6 @@ describe('Test Autocompletition', () => {
 
     it('Test dots', async () => {
       await givenGrammar("r: .; A: [a-zA-Z0-9]; B: 'b';").whenInput("").thenExpect(["A", "B"]);
-      await givenGrammar("r: .; ").whenInput("").thenExpect([]);
     });
 
     it('Ignores tokens in other channels', async () => {
