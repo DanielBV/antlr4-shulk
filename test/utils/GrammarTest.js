@@ -27,6 +27,7 @@ class GrammarTestBase {
         // could mess up the INCREASING counter (unless you always add tests at the end)
         this.counter = crypto.randomUUID().replaceAll("-","");
         this._cachedParser = null;
+        this._startingRuleFactory = null;
     }
 
     get file() {
@@ -65,11 +66,21 @@ class GrammarTestBase {
         return this._cachedParser;
     }
 
+    /**
+     * 
+     * @param {*} factory A function that takes a parser and returns a integer representing the rule in that parser
+     */
+    startingAtRule(factory) {
+        this._startingRuleFactory = factory;
+        return this;
+    }
+
     async thenExpect(expected) {
         if (!Array.isArray(expected)) expected = [expected];
         const [Lexer, Parser] = await this.getParser();
         const ac = new Autocompleter(Lexer, Parser, this.options);
-        const result = ac.autocomplete(this.input);
+        const startingRule = this._startingRuleFactory ? this._startingRuleFactory(Parser) : undefined; 
+        const result = ac.autocomplete(this.input, startingRule);
         expect(result).toEqual(expected);
     }
 }
@@ -86,24 +97,24 @@ class SingleGrammarFile extends GrammarTestBase {
     }
 
     saveInGlobalCache() {
-        globalCache[this.grammar] = this.file;
+        globalCache[this.grammar] = this.counter;
     }
 
     async buildParser() {
         // This is used because for some reason the relative path of the output folder of the execSync worked differently 
         // when run in Github actions 
         const fullPath = path.resolve(".");
-        let file;
-        // The globalCache overrides the this.file
+        // The globalCache overrides the this.counter to use the file that already exists
         if(globalCache[this.grammar]) {
-            file = globalCache[this.grammar];
+            console.log("Is in cache: "+ this.grammar);
+            console.log(globalCache[this.grammar]);
+            this.counter = globalCache[this.grammar];
         } else {
             fs.writeFileSync(`./test/tmp/${this.file}.g4`, this.fullGrammar);
             child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}.g4  -no-visitor -no-listener -o  ${fullPath}/test/tmp/`)
-            file = this.file;
         }   
-        const Lexer = await import(`../tmp/${file}Lexer.js`)
-        const Parser = await import(`../tmp/${file}Parser.js`)
+        const Lexer = await import(`../tmp/${this.file}Lexer.js`)
+        const Parser = await import(`../tmp/${this.file}Parser.js`)
         return [Lexer.default, Parser.default];
     }
 }
@@ -125,7 +136,7 @@ class SplitGrammar extends GrammarTestBase {
 
     saveInGlobalCache() {
         globalCache[this._lexer] = {};
-        globalCache[this._lexer][this._parser] = this.file; 
+        globalCache[this._lexer][this._parser] = this.counter; 
     }
 
     andParser(parser) {
@@ -134,20 +145,18 @@ class SplitGrammar extends GrammarTestBase {
     }
 
     async buildParser() {
-        let file;
         // The globalCache overrides the this.file
         if(globalCache[this._lexer] &&  globalCache[this._lexer][this._parser]) {
-            file = globalCache[this._lexer][this._parser];
+            this.counter = globalCache[this._lexer][this._parser];
         } else {
             fs.writeFileSync(`./test/tmp/${this.file}Lexer.g4`, this.fullLexer);
             fs.writeFileSync(`./test/tmp/${this.file}Parser.g4`, this.fullParser);
             const fullPath = path.resolve(".");
             child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Lexer.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
             child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Parser.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
-            file = this.file;
         }
-         const Lexer = await import(`../tmp/${file}Lexer.js`)
-        const Parser = await import(`../tmp/${file}Parser.js`)
+         const Lexer = await import(`../tmp/${this.file}Lexer.js`)
+        const Parser = await import(`../tmp/${this.file}Parser.js`)
         return [Lexer.default, Parser.default];
     }
 }

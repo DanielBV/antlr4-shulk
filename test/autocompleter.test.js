@@ -1,7 +1,6 @@
 
 import {givenGrammar, givenLexer, saveCache, loadCache} from './utils/GrammarTest';
 
-
 describe('Test Autocompletition', () => {
 
     beforeAll(() => {
@@ -35,7 +34,7 @@ describe('Test Autocompletition', () => {
 
 
     it("removes duplicated tokens", async () => {
-      await givenGrammar("r: A | .; A: 'A';").whenInput("").thenExpect("A");
+      await givenGrammar("r: A | . | A; A: 'A';").whenInput("").thenExpect("A");
     })
 
 
@@ -154,5 +153,16 @@ describe('Test Autocompletition', () => {
       `).andParser("r: .+;")
       .whenInput("").thenExpect(["FOO", "A", "B"]);
     });
+
+    it("test with other starting rule", async () => {
+      const base = givenGrammar(`
+        first2: 'A';
+        second2: B first2; 
+        B: 'B';
+      `);
+
+      await base.whenInput("").thenExpect(['A']);
+      await base.whenInput("").startingAtRule((parser) => parser.RULE_second2).thenExpect(['B']);
+    })
 
 });
