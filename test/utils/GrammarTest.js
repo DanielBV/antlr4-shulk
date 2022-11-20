@@ -8,7 +8,6 @@ if (!fs.existsSync(`./test/tmp/`)) {
     fs.mkdirSync(`./test/tmp/`);
 }
 
-let counter = 0;
 // There are two caches:
 // - The _cachedParser in GrammarTestBase is used to avoid regenerating the same parser 
 // if a GrammarTestBase calls multiple times to "thenExpect"
@@ -28,6 +27,7 @@ class GrammarTestBase {
         this.counter = crypto.randomUUID().replace(/-/g,"");
         this._cachedParser = null;
         this._startingRuleFactory = null;
+        this._rulesFactory = null;
     }
 
     get file() {
@@ -58,6 +58,14 @@ class GrammarTestBase {
         return this;
     }
 
+    /**
+     * @param {*} rulesFactory A function that takes a parser and returns a set of findable rules
+     */
+    withFindableRules(rulesFactory) {
+        this._rulesFactory = rulesFactory;
+        return this;
+    }
+
     async getParser() {
         if (!this._cachedParser) {
             this._cachedParser = await this.buildParser();
@@ -85,7 +93,7 @@ class GrammarTestBase {
         const [result, Parser] = await this.execute();
         if (result.length !== expected.length)
             //This is to make the message a bit more clear
-            expect(result.map(x => x.s)).toEqual(expected);
+            expect(result.map(x => x.suggestion)).toEqual(expected.map(x => x.s));
 
         for (let i = 0; i < result.length; i++) {
             expect(result[i].suggestion).toEqual(expected[i].s);
@@ -94,10 +102,24 @@ class GrammarTestBase {
         }
     }
 
+    async thenExpectComplete(expected) {
+        const [result, Parser] = await this.execute();
+        if (result.length !== expected.length)
+        //This is to make the message a bit more clear
+        expect(result.map(x => x.suggestion)).toEqual(expected.map(x => x.s));
+
+    for (let i = 0; i < result.length; i++) {
+        expect(result[i].suggestion).toEqual(expected[i].s);
+        expect(result[i].isRule).toEqual(expected[i].rule);
+    }
+    }
+
     async execute() {
         const [Lexer, Parser] = await this.getParser();
         if (this._startingRuleFactory)
             this.options.initialRule = this._startingRuleFactory(Parser);
+        if (this._rulesFactory)
+            this.options.suggestRules = this._rulesFactory(Parser);
         const ac = new Autocompleter(Lexer, Parser, this.options);
         return [ac.autocomplete(this.input), Parser];
     }

@@ -200,7 +200,22 @@ describe('Test Autocompletition', () => {
       await base.whenInput("").thenExpectWithContext([
         {s: "A", ctx: [["first", "second"], ["first", "third"], ["first", "third", "fourth"]]}
       ]);
-      
+    });
+
+    it("finds rules", async () => {
+      const base = givenGrammar(`
+      first: expr PLUS expr;
+      expr: 'A' another? notThisOne?;
+      another: 'B';
+      notThisOne: 'C';
+      PLUS: '+';
+      A: 'A';
+    `);
+
+    await base.whenInput("").withFindableRules((parser) => new Set([parser.RULE_expr, parser.RULE_another])).thenExpectComplete([{s: "expr", rule: true}]);
+    await base.whenInput("").withFindableRules((parser) => new Set([parser.RULE_another])).thenExpectComplete([{s: "A", rule: false}]);
+    await base.whenInput("A").withFindableRules((parser) => new Set([parser.RULE_expr, parser.RULE_another]))
+      .thenExpectComplete([{s: "another", rule: true}, {s: "C", rule: false}, {s: "PLUS", rule: false}]);
     });
 
 });

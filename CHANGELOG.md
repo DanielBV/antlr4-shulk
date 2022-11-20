@@ -1,5 +1,8 @@
 # Changelog
 
+# 0.3.0 
+* Added rule suggestions
+
 # 0.2.0
 * Now suggestions are encapsulated in a "Suggestion" object.
     * This object includes the context in which the suggestion is being made.
