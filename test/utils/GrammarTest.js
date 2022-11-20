@@ -25,7 +25,7 @@ class GrammarTestBase {
         // The whole point of this rather than a counter (by the variable name you can guess it used to be an autoincreasing counter)
         // is that since there is a global cache persisted across multiple executions, and since you can define new tests, that 
         // could mess up the INCREASING counter (unless you always add tests at the end)
-        this.counter = crypto.randomUUID().replaceAll("-","");
+        this.counter = crypto.randomUUID().replace(/-/g,"");
         this._cachedParser = null;
         this._startingRuleFactory = null;
     }
