@@ -163,6 +163,16 @@ describe('Test Autocompletition', () => {
 
       await base.whenInput("").thenExpect(['A']);
       await base.whenInput("").startingAtRule((parser) => parser.RULE_second2).thenExpect(['B']);
+    });
+
+    it("test with a starting rule that doesn't exist", async () => {
+      const base = givenGrammar(`
+        first2: 'A';
+        second2: B first2; 
+        B: 'B';
+      `).whenInput("").startingAtRule(() => 3);
+      await expect(() => base.thenExpect(['B'])).rejects.toThrow("Unexpected starting rule: 3");
+     
     })
 
 });
