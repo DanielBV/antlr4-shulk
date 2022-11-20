@@ -78,9 +78,10 @@ class GrammarTestBase {
     async thenExpect(expected) {
         if (!Array.isArray(expected)) expected = [expected];
         const [Lexer, Parser] = await this.getParser();
+        if (this._startingRuleFactory)
+            this.options.initialRule = this._startingRuleFactory(Parser);
         const ac = new Autocompleter(Lexer, Parser, this.options);
-        const startingRule = this._startingRuleFactory ? this._startingRuleFactory(Parser) : undefined; 
-        const result = ac.autocomplete(this.input, startingRule);
+        const result = ac.autocomplete(this.input);
         expect(result).toEqual(expected);
     }
 }
