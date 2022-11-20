@@ -173,6 +173,34 @@ describe('Test Autocompletition', () => {
       `).whenInput("").startingAtRule(() => 3);
       await expect(() => base.thenExpect(['B'])).rejects.toThrow("Unexpected starting rule: 3");
      
-    })
+    }); 
+
+    it("executes with context", async () => {
+      const base = givenGrammar(`
+        first: 'A' second fourth;
+        second: 'A' third; 
+        third: A;
+        fourth: 'A';
+        A: 'A';
+      `);
+      await base.whenInput("").thenExpectWithContext([{s: "A", ctx: [["first"]]}]);
+      await base.whenInput("A").thenExpectWithContext([{s: "A", ctx: [["first", "second"]]}]);
+      await base.whenInput("AA").thenExpectWithContext([{s: "A", ctx: [["first", "second", "third"]]}]);
+      await base.whenInput("AAA").thenExpectWithContext([{s: "A", ctx: [["first", "fourth"]]}]);
+    });
+
+    it("fuses context in duplicated suggestions", async () => {
+      const base = givenGrammar(`
+        first: second | third;
+        second: A; 
+        third: A? fourth;
+        fourth: A;
+        A: 'A';
+      `);
+      await base.whenInput("").thenExpectWithContext([
+        {s: "A", ctx: [["first", "second"], ["first", "third"], ["first", "third", "fourth"]]}
+      ]);
+      
+    });
 
 });

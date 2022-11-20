@@ -77,12 +77,29 @@ class GrammarTestBase {
 
     async thenExpect(expected) {
         if (!Array.isArray(expected)) expected = [expected];
+        const [result, _] = await this.execute();
+        expect(result.map(x => x.suggestion)).toEqual(expected);
+    }
+
+    async thenExpectWithContext(expected) {
+        const [result, Parser] = await this.execute();
+        if (result.length !== expected.length)
+            //This is to make the message a bit more clear
+            expect(result.map(x => x.s)).toEqual(expected);
+
+        for (let i = 0; i < result.length; i++) {
+            expect(result[i].suggestion).toEqual(expected[i].s);
+            const numberedResultContexts = result[i].ctxs.map(x => x.map(y => Parser.ruleNames[y]))
+            expect(numberedResultContexts).toEqual(expected[i].ctx);
+        }
+    }
+
+    async execute() {
         const [Lexer, Parser] = await this.getParser();
         if (this._startingRuleFactory)
             this.options.initialRule = this._startingRuleFactory(Parser);
         const ac = new Autocompleter(Lexer, Parser, this.options);
-        const result = ac.autocomplete(this.input);
-        expect(result).toEqual(expected);
+        return [ac.autocomplete(this.input), Parser];
     }
 }
 
@@ -120,7 +137,6 @@ class SingleGrammarFile extends GrammarTestBase {
     }
 }
 
-//TODO would be nice to combine it with GrammarTest 
 class SplitGrammar extends GrammarTestBase {
     constructor(lexer) {
         super();

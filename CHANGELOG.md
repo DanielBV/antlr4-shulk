@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.2.0
+* Now suggestions are encapsulated in a "Suggestion" object.
+    * This object includes the context in which the suggestion is being made.
+
 # 0.1.0
 * Initial version: Basic functionality autocompleting tokens
     * Allows selecting the first rule
