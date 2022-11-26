@@ -43,6 +43,11 @@ class GrammarTestBase {
         return this;
     }
 
+    withRecovery(recovery) {
+        this._recovery = recovery;
+        return this;
+    }
+
     whileIgnoringOtherChannels() {
         this.options.ignoreSuggestionsInNonDefaultChannels = true;
         return this;
@@ -120,6 +125,8 @@ class GrammarTestBase {
             this.options.initialRule = this._startingRuleFactory(Parser);
         if (this._rulesFactory)
             this.options.suggestRules = this._rulesFactory(Parser);
+        if (this._recovery) 
+            this.options.recovery = this._recovery(Parser);
         const ac = new Autocompleter(Lexer, Parser, this.options);
         return [ac.autocomplete(this.input), Parser];
     }

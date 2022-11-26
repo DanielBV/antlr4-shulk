@@ -218,4 +218,58 @@ describe('Test Autocompletition', () => {
       .thenExpectComplete([{s: "another", rule: true}, {s: "C", rule: false}, {s: "PLUS", rule: false}]);
     });
 
+
+    const recoveryBase = givenGrammar(`
+    expression: assignment | simpleExpression;
+
+    assignment: (VAR | LET) ID EQUAL simpleExpression;
+    
+    simpleExpression
+        : simpleExpression (PLUS | MINUS) simpleExpression
+        | simpleExpression (MULTIPLY | DIVIDE) simpleExpression
+        | variableRef
+        | functionRef
+    ;
+    
+    variableRef: ID;
+    functionRef: ID OPEN_PAR CLOSE_PAR;
+    
+    VAR: [vV] [aA] [rR];
+    LET: [lL] [eE] [tT];
+    
+    PLUS: '+';
+    MINUS: '-';
+    MULTIPLY: '*';
+    DIVIDE: '/';
+    EQUAL: '=';
+    OPEN_PAR: '(';
+    CLOSE_PAR: ')';
+    ID: [a-zA-Z] [a-zA-Z0-9_]*;
+    WS: [ \\n\\r\\t] -> channel(HIDDEN);
+    `)
+    it("test basic recovery", async () => {
+      recoveryBase.withRecovery((parser) => {
+        const a = {};
+        a[parser.RULE_assignment] = {};
+        a[parser.RULE_assignment][parser.VAR] =  parser.RULE_assignment;
+        return a;
+      });
+      await recoveryBase.whenInput("let = = var a =").thenExpect("ID");
+      await recoveryBase.whenInput("let a = b").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE", "OPEN_PAR"]);
+      await recoveryBase.whenInput("let = = var a = b").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE", "OPEN_PAR"]);
+    });
+
+    it("test recovery inside nested rules", async () => {
+      recoveryBase.withRecovery((parser) => {
+        const a = {};
+        a[parser.RULE_assignment] = {};
+        const foo = {ifInRule: parser.RULE_assignment, nested: true, andFindToken: parser.VAR, thenGoToRule: parser.RULE_assignment};  
+        return [foo];
+      });
+
+      //TODO test stack when recovery
+      await recoveryBase.whenInput("var a = b()").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]);
+      // The idea here is that the error isn't inside 'assignment', but inside 'simpleExpression'
+      await recoveryBase.whenInput("let a = foo( var a = b()").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]);
+    });
 });
