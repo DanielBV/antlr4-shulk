@@ -1,5 +1,5 @@
 
-import {givenGrammar, givenLexer, saveCache, loadCache} from './utils/GrammarTest';
+import {givenGrammar, givenLexer, saveCache, loadCache, givenFiles} from './utils/GrammarTest';
 
 describe('Test Autocompletition', () => {
 
@@ -271,5 +271,40 @@ describe('Test Autocompletition', () => {
       await recoveryBase.whenInput("var a = b()").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]);
       // The idea here is that the error isn't inside 'assignment', but inside 'simpleExpression'
       await recoveryBase.whenInput("let a = foo( var a = b()").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]);
+      const baseCtx =  ["expression", "assignment", "simpleExpression"];
+      await recoveryBase.whenInput("var a = b()").thenExpectWithContext(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"].map(x => ({s: x, ctx: [baseCtx]})));
+      //It's difficult to know when an error should be recovered and when it shouldn't be because another branch of the execution will keep on parsing it correctly.
+      //that's why there are several contexts, since the autocompleter arrived at the same suggestion throw several token recoveries
+      // Maybe I could try making the autocompletion do a breadth first search in a way that, it'll only try to recover if all branches fail. But that scares 
+      // me a little since there could be times when a branch succeeds but it's not the actually intended one.
+      await recoveryBase.whenInput("let a = foo( var a = b()").thenExpectWithContext(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]
+        .map(x => ({s: x, ctx: [baseCtx, baseCtx, baseCtx]})));
+
+    });
+
+    it("test java grammar", async () => {
+      const grammar = givenFiles("JavaLexer.g4", "JavaParser.g4").withRecovery((parser) => {
+        const foo = {ifInRule: parser.RULE_blockStatement, nested: true, andFindToken: parser.SEMI, thenGoToRule: parser.RULE_blockStatement, skipOne: true};  
+        return [foo];
+      });
+
+      const expected = ["MUL", "DIV", "MOD", "ADD", "SUB", "LT", "GT", "LE", "GE", "EQUAL", "NOTEQUAL", 
+      "BITAND", "CARET", "BITOR", "AND", "OR", "QUESTION", "ASSIGN", "ADD_ASSIGN", "SUB_ASSIGN", 
+      "MUL_ASSIGN", "DIV_ASSIGN", "AND_ASSIGN", "OR_ASSIGN", "XOR_ASSIGN", "MOD_ASSIGN", "LSHIFT_ASSIGN", 
+      "RSHIFT_ASSIGN", "URSHIFT_ASSIGN", "DOT", "LBRACK", "INC", "DEC", "INSTANCEOF", "COLONCOLON", "COMMA", 
+      "RPAREN"];
+      await grammar.whenInput(`class HelloWorld {
+        public static void main(String[] args) {
+            System.out.println("foo"
+      `).thenExpect(expected);
+
+      await grammar.whenInput(`class HelloWorld {
+        ${`public static void main(String[] args) {
+          Sout("foo");
+        }\n`/*.repeat(20)*/}
+        public static void main(String[] args) {
+            System.out.println("foo";  // It's missing a ) and yet it advances to the next statement and autocompletes it correctly.
+            System.out.println("foo"
+      `).thenExpect(expected);
     });
 });
