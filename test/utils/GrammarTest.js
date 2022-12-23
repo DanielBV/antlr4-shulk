@@ -166,6 +166,33 @@ class SingleGrammarFile extends GrammarTestBase {
     }
 }
 
+class SeparateGrammarFiles extends GrammarTestBase {
+    constructor(lexerFile, parserFile) {
+        super();
+        this._lexer = lexerFile;
+        this._parser = parserFile;
+    }
+
+    saveInGlobalCache() {
+        globalCache[this._lexer] = {};
+        globalCache[this._lexer][this._parser] = this.counter; 
+    }
+
+    async buildParser() {
+        // The globalCache overrides the this.file
+        if(globalCache[this._lexer] &&  globalCache[this._lexer][this._parser]) {
+            this.counter = globalCache[this._lexer][this._parser];
+        } else {
+            const fullPath = path.resolve(".");
+            child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/grammars/${this._lexer}  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
+            child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/grammars/${this._parser}  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
+        }
+        const Lexer = await import(`../tmp/${this._lexer.replace(".g4", ".js")}`)
+        const Parser = await import(`../tmp/${this._parser.replace(".g4", ".js")}`)
+        return [Lexer.default, Parser.default];
+    }
+}
+
 class SplitGrammar extends GrammarTestBase {
     constructor(lexer) {
         super();
@@ -201,7 +228,7 @@ class SplitGrammar extends GrammarTestBase {
             child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Lexer.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
             child.execSync(`java -jar ./test/bin/antlr-4.11.1-complete.jar -Dlanguage=JavaScript ${fullPath}/test/tmp/${this.file}Parser.g4  -no-visitor -no-listener -o ${fullPath}/test/tmp/`)
         }
-         const Lexer = await import(`../tmp/${this.file}Lexer.js`)
+        const Lexer = await import(`../tmp/${this.file}Lexer.js`)
         const Parser = await import(`../tmp/${this.file}Parser.js`)
         return [Lexer.default, Parser.default];
     }
@@ -213,6 +240,10 @@ export function givenGrammar(grammar) {
 
 export function givenLexer(lexer) {
     return new SplitGrammar(lexer);
+}
+
+export function givenFiles(lexer, parser) {
+    return new SeparateGrammarFiles(lexer, parser);
 }
 
 const CACHE_PATH = './test/tmp/cache.json';
