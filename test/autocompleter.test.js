@@ -1,8 +1,17 @@
 
 import {givenGrammar, givenLexer, saveCache, loadCache, givenFiles} from './utils/GrammarTest';
 
+const jestConsole = console;
 describe('Test Autocompletition', () => {
 
+      
+    beforeEach(() => {
+      global.console = require('console');
+    });
+
+    afterEach(() => {
+      global.console = jestConsole;
+    });
     beforeAll(() => {
       return loadCache();
     })
@@ -10,7 +19,7 @@ describe('Test Autocompletition', () => {
       return saveCache();
     });
 
-    const LETTER_LEXER = "A: 'A'; B: 'B'; C: 'C';";
+    /*const LETTER_LEXER = "A: 'A'; B: 'B'; C: 'C';";
     it('General', async () => {
       // For every case I should test both what happens if the caret is there + that it transverses it if it's not a caret
       await givenGrammar("r: A A 'B'; A: 'A';").whenInput("AA").thenExpect("B");
@@ -246,8 +255,8 @@ describe('Test Autocompletition', () => {
     CLOSE_PAR: ')';
     ID: [a-zA-Z] [a-zA-Z0-9_]*;
     WS: [ \\n\\r\\t] -> channel(HIDDEN);
-    `)
-    it("test basic recovery", async () => {
+    `);
+    /*it("test basic recovery", async () => {
       recoveryBase.withRecovery((parser) => {
         const a = {};
         a[parser.RULE_assignment] = {};
@@ -282,6 +291,35 @@ describe('Test Autocompletition', () => {
 
     });
 
+    it("test more efficient recovery", async () => {
+      const grammar = givenGrammar(`
+      expression: block+;      
+      block
+          : a SEMI
+          | b SEMI
+          | c SEMI
+          | d SEMI
+          ;
+
+      a: 'A';
+      b: 'B'; 
+      c: 'C';
+      d: 'D';
+      SEMI: ';';
+      WS: [ \\n\\r\\t] -> channel(HIDDEN);
+
+      `).withRecovery((parser) => {
+        const a = {};
+        a[parser.RULE_assignment] = {};
+        const foo = {ifInRule: parser.RULE_block, nested: true, andFindToken: parser.SEMI, thenGoToRule: parser.RULE_block, skipOne: true};  
+        return [foo];
+      });
+
+      //TODO test stack when recovery
+      await grammar.whenInput("A; B B; A;").thenExpect(["A", "B", "C", "D"]);
+      // The idea here is that the error isn't inside 'assignment', but inside 'simpleExpression'
+    });*/
+    
     it("test java grammar", async () => {
       const grammar = givenFiles("JavaLexer.g4", "JavaParser.g4").withRecovery((parser) => {
         const foo = {ifInRule: parser.RULE_blockStatement, nested: true, andFindToken: parser.SEMI, thenGoToRule: parser.RULE_blockStatement, skipOne: true};  
@@ -293,15 +331,18 @@ describe('Test Autocompletition', () => {
       "MUL_ASSIGN", "DIV_ASSIGN", "AND_ASSIGN", "OR_ASSIGN", "XOR_ASSIGN", "MOD_ASSIGN", "LSHIFT_ASSIGN", 
       "RSHIFT_ASSIGN", "URSHIFT_ASSIGN", "DOT", "LBRACK", "INC", "DEC", "INSTANCEOF", "COLONCOLON", "COMMA", 
       "RPAREN"];
-      await grammar.whenInput(`class HelloWorld {
+      /*await grammar.whenInput(`class HelloWorld {
         public static void main(String[] args) {
             System.out.println("foo"
-      `).thenExpect(expected);
+      `).thenExpect(expected);*/
 
+      // Brainstorming: Ahora está ejecutando 21 por el 
+        // block: '{' blockStatement* '}'
+      // 1. Poner tokens de parada: '}', \n
       await grammar.whenInput(`class HelloWorld {
         ${`public static void main(String[] args) {
-          Sout("foo");
-        }\n`/*.repeat(20)*/}
+          System.out.println("foo");
+        }\n`.repeat(15)}
         public static void main(String[] args) {
             System.out.println("foo";  // It's missing a ) and yet it advances to the next statement and autocompletes it correctly.
             System.out.println("foo"
