@@ -19,7 +19,7 @@ describe('Test Autocompletition', () => {
       return saveCache();
     });
 
-    /*const LETTER_LEXER = "A: 'A'; B: 'B'; C: 'C';";
+    const LETTER_LEXER = "A: 'A'; B: 'B'; C: 'C';";
     it('General', async () => {
       // For every case I should test both what happens if the caret is there + that it transverses it if it's not a caret
       await givenGrammar("r: A A 'B'; A: 'A';").whenInput("AA").thenExpect("B");
@@ -56,7 +56,7 @@ describe('Test Autocompletition', () => {
       await givenGrammar("r:  (~(A | C)); A: 'A'; B: 'B'; C: 'C';").whenInput("").thenExpect(["B"]);
       await givenGrammar("r:  (~(A | B | C)); A: 'A'; B: 'B'; C: 'C';").whenInput("").thenExpect([]);
     });
-
+    
     it('Follows subrules', async () => {
        await givenGrammar(`first: A second; 
        second: B; 
@@ -183,7 +183,7 @@ describe('Test Autocompletition', () => {
       await expect(() => base.thenExpect(['B'])).rejects.toThrow("Unexpected starting rule: 3");
      
     }); 
-
+    
     it("executes with context", async () => {
       const base = givenGrammar(`
         first: 'A' second fourth;
@@ -227,7 +227,7 @@ describe('Test Autocompletition', () => {
       .thenExpectComplete([{s: "another", rule: true}, {s: "C", rule: false}, {s: "PLUS", rule: false}]);
     });
 
-
+    
     const recoveryBase = givenGrammar(`
     expression: assignment | simpleExpression;
 
@@ -256,12 +256,11 @@ describe('Test Autocompletition', () => {
     ID: [a-zA-Z] [a-zA-Z0-9_]*;
     WS: [ \\n\\r\\t] -> channel(HIDDEN);
     `);
-    /*it("test basic recovery", async () => {
+    
+    it("test basic recovery", async () => {
       recoveryBase.withRecovery((parser) => {
-        const a = {};
-        a[parser.RULE_assignment] = {};
-        a[parser.RULE_assignment][parser.VAR] =  parser.RULE_assignment;
-        return a;
+        const foo = {ifInRule: parser.RULE_assignment, nested: true, andFindToken: parser.VAR, thenGoToRule: parser.RULE_assignment};  
+        return [foo];
       });
       await recoveryBase.whenInput("let = = var a =").thenExpect("ID");
       await recoveryBase.whenInput("let a = b").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE", "OPEN_PAR"]);
@@ -272,14 +271,14 @@ describe('Test Autocompletition', () => {
       recoveryBase.withRecovery((parser) => {
         const a = {};
         a[parser.RULE_assignment] = {};
+        //TODO borrar el nested
         const foo = {ifInRule: parser.RULE_assignment, nested: true, andFindToken: parser.VAR, thenGoToRule: parser.RULE_assignment};  
         return [foo];
       });
 
-      //TODO test stack when recovery
-      await recoveryBase.whenInput("var a = b()").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]);
+      //await recoveryBase.whenInput("var a = b()").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]);
       // The idea here is that the error isn't inside 'assignment', but inside 'simpleExpression'
-      await recoveryBase.whenInput("let a = foo( var a = b()").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]);
+      //await recoveryBase.whenInput("let a = foo( var a = b()").thenExpect(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]);
       const baseCtx =  ["expression", "assignment", "simpleExpression"];
       await recoveryBase.whenInput("var a = b()").thenExpectWithContext(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"].map(x => ({s: x, ctx: [baseCtx]})));
       //It's difficult to know when an error should be recovered and when it shouldn't be because another branch of the execution will keep on parsing it correctly.
@@ -287,10 +286,10 @@ describe('Test Autocompletition', () => {
       // Maybe I could try making the autocompletion do a breadth first search in a way that, it'll only try to recover if all branches fail. But that scares 
       // me a little since there could be times when a branch succeeds but it's not the actually intended one.
       await recoveryBase.whenInput("let a = foo( var a = b()").thenExpectWithContext(["PLUS", "MINUS", "MULTIPLY", "DIVIDE"]
-        .map(x => ({s: x, ctx: [baseCtx, baseCtx, baseCtx]})));
+        .map(x => ({s: x, ctx: [baseCtx]})));
 
     });
-
+    
     it("test more efficient recovery", async () => {
       const grammar = givenGrammar(`
       expression: block+;      
@@ -318,7 +317,7 @@ describe('Test Autocompletition', () => {
       //TODO test stack when recovery
       await grammar.whenInput("A; B B; A;").thenExpect(["A", "B", "C", "D"]);
       // The idea here is that the error isn't inside 'assignment', but inside 'simpleExpression'
-    });*/
+    });
     
     it("test java grammar", async () => {
       const grammar = givenFiles("JavaLexer.g4", "JavaParser.g4").withRecovery((parser) => {
@@ -331,10 +330,10 @@ describe('Test Autocompletition', () => {
       "MUL_ASSIGN", "DIV_ASSIGN", "AND_ASSIGN", "OR_ASSIGN", "XOR_ASSIGN", "MOD_ASSIGN", "LSHIFT_ASSIGN", 
       "RSHIFT_ASSIGN", "URSHIFT_ASSIGN", "DOT", "LBRACK", "INC", "DEC", "INSTANCEOF", "COLONCOLON", "COMMA", 
       "RPAREN"];
-      /*await grammar.whenInput(`class HelloWorld {
+      await grammar.whenInput(`class HelloWorld {
         public static void main(String[] args) {
             System.out.println("foo"
-      `).thenExpect(expected);*/
+      `).thenExpect(expected);
 
       // Brainstorming: Ahora está ejecutando 21 por el 
         // block: '{' blockStatement* '}'
@@ -342,7 +341,7 @@ describe('Test Autocompletition', () => {
       await grammar.whenInput(`class HelloWorld {
         ${`public static void main(String[] args) {
           System.out.println("foo");
-        }\n`.repeat(15)}
+        }\n`.repeat(50)}
         public static void main(String[] args) {
             System.out.println("foo";  // It's missing a ) and yet it advances to the next statement and autocompletes it correctly.
             System.out.println("foo"
