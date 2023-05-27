@@ -92,6 +92,7 @@ class GrammarTestBase {
         if (!Array.isArray(expected)) expected = [expected];
         const [result, Parser, debugStats] = await this.execute();
         expected = expected.map(x => {
+            if (x === "EOF") return -1;
             let index = Parser.symbolicNames.indexOf(x);
             if (index === -1) index = Parser.literalNames.indexOf(`'${x}'`);
             if (index === -1) throw Error("Unexpected token: " + x);
@@ -126,10 +127,18 @@ class GrammarTestBase {
         //This is to make the message a bit more clear
         expect(result.map(x => x.suggestion)).toEqual(expected.map(x => x.s));
 
-    for (let i = 0; i < result.length; i++) {
-        expect(result[i].suggestion).toEqual(expected[i].s);
-        expect(result[i].isRule).toEqual(expected[i].rule);
-    }
+        for (let i = 0; i < result.length; i++) {
+            expect(result[i].isRule).toEqual(expected[i].rule);
+            if (result[i].isRule) {
+                expect(result[i].rule).toEqual(Parser.ruleNames.indexOf(expected[i].s) );
+            } else {
+                const x = expected[i];
+                let index = Parser.symbolicNames.indexOf(x.s);
+                if (index === -1) index = Parser.literalNames.indexOf(`'${x.s}'`);
+                if (index === -1) throw Error("Unexpected token: " + x.s);
+                expect(result[i].id).toEqual(index);
+            }
+        }
     }
 
     async execute() {
@@ -166,8 +175,6 @@ class SingleGrammarFile extends GrammarTestBase {
         const fullPath = path.resolve(".");
         // The globalCache overrides the this.counter to use the file that already exists
         if(globalCache[this.grammar]) {
-            console.log("Is in cache: "+ this.grammar);
-            console.log(globalCache[this.grammar]);
             this.counter = globalCache[this.grammar];
         } else {
             fs.writeFileSync(`./test/tmp/${this.file}.g4`, this.fullGrammar);
@@ -264,7 +271,6 @@ export function loadCache() {
     if (fs.existsSync(CACHE_PATH)) {
         const data = fs.readFileSync(CACHE_PATH, {encoding:'utf8'});
         globalCache = JSON.parse(data);
-        console.log(globalCache);
     }
 }
 
