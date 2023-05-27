@@ -1,5 +1,5 @@
 
-import {givenGrammar, givenLexer, saveCache, loadCache, givenFiles} from './utils/BlogGrammarTest';
+import {givenGrammar, givenLexer, saveCache, loadCache, givenFiles} from './utils/GrammarTest';
 
 const jestConsole = console;
 describe.only('Blog Autocompletition', () => {

@@ -1,4 +1,4 @@
-import Autocompleter from '../../lib/blog-autocomplete';
+import Autocompleter from '../../lib/autocompleter';
 import child from 'child_process';
 import path from 'path';
 import fs from 'fs';
