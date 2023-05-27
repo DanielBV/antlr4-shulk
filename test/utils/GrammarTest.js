@@ -1,4 +1,4 @@
-import Autocompleter from '../../lib/autocompleter';
+import Autocompleter from '../../lib/blog-autocomplete';
 import child from 'child_process';
 import path from 'path';
 import fs from 'fs';
@@ -90,20 +90,33 @@ class GrammarTestBase {
 
     async thenExpect(expected) {
         if (!Array.isArray(expected)) expected = [expected];
-        const [result, _] = await this.execute();
-        expect(result.map(x => x.suggestion)).toEqual(expected);
+        const [result, Parser, debugStats] = await this.execute();
+        expected = expected.map(x => {
+            let index = Parser.symbolicNames.indexOf(x);
+            if (index === -1) index = Parser.literalNames.indexOf(`'${x}'`);
+            if (index === -1) throw Error("Unexpected token: " + x);
+            return index;
+        })
+        expect(result.map(x => x.token)).toEqual(expected);
+        return debugStats;
     }
 
     async thenExpectWithContext(expected) {
-        const [result, Parser] = await this.execute();
+        const [result, Parser] = await this.execute(); 
+        expected = expected.map(x => {
+            let index = Parser.symbolicNames.indexOf(x.s);
+            if (index === -1) index = Parser.literalNames.indexOf(`'${x.s}'`);
+            if (index === -1) throw Error("Unexpected token: " + x.s);
+            return {...x, s: index};
+        })
         if (result.length !== expected.length)
             //This is to make the message a bit more clear
-            expect(result.map(x => x.suggestion)).toEqual(expected.map(x => x.s));
+            expect(result.map(x => x.token)).toEqual(expected.map(x => x.s));
 
         for (let i = 0; i < result.length; i++) {
-            expect(result[i].suggestion).toEqual(expected[i].s);
-            const numberedResultContexts = result[i].ctxs.map(x => x.map(y => Parser.ruleNames[y]))
-            expect(numberedResultContexts).toEqual(expected[i].ctx);
+            expect(result[i].token).toEqual(expected[i].s);
+            const numberedResultContexts = result[i].ctxt.map(x => x.map(y => Parser.ruleNames[y]))
+            expect(numberedResultContexts).toEqual(expected[i].ctxt);
         }
     }
 
@@ -128,7 +141,7 @@ class GrammarTestBase {
         if (this._recovery) 
             this.options.recovery = this._recovery(Parser);
         const ac = new Autocompleter(Lexer, Parser, this.options);
-        return [ac.autocomplete(this.input), Parser];
+        return [ac.autocomplete(this.input), Parser, ac._debugStats];
     }
 }
 

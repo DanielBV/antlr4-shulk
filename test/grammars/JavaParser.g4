@@ -32,7 +32,7 @@
 
 parser grammar JavaParser;
 
-options { tokenVocab=MariaDBLexer; }
+options { tokenVocab=JavaLexer; }
 
 compilationUnit
     : packageDeclaration? importDeclaration* typeDeclaration*
