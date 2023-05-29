@@ -1,6 +1,6 @@
 {
   "name": "antlr4-shulk",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A library to autocomplete antlr4 grammars",
   "main": "index.js",
   "type": "module",

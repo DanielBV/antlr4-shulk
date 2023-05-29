@@ -1,5 +1,9 @@
 # Changelog
 
+# 0.4.0
+* Added recovery rules PoC
+* Heavy refactoring.
+
 # 0.3.0 
 * Added rule suggestions
 
