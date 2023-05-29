@@ -1,6 +1,8 @@
 
 
 # Antlr4-shulk
+An autocomplete library for ANTLR4 grammars. The development of this library was explained in a series of posts: 
+[https://www.abstractsyntaxseed.com/blog/antlr4-autocomplete-library/introduction](https://www.abstractsyntaxseed.com/blog/antlr4-autocomplete-library/introduction)
 
 ## How to use
 For the basic use, you can do:
