@@ -2,7 +2,7 @@
 import {givenGrammar, givenLexer, saveCache, loadCache, givenFiles} from './utils/GrammarTest';
 
 const jestConsole = console;
-describe.only('Blog Autocompletition', () => {
+describe.only('Autocompletition', () => {
 
     beforeEach(() => {
         global.console = require('console');
